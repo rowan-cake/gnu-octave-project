@@ -1,6 +1,6 @@
 # gnu-octave-project
 
-This repo is a small Octave prototype for linking a seasonal epidemic model to a hospital surge-bed decision problem.
+This repo is a small Octave prototype for linking a seasonal epidemic model to a hospital surge bed decision problem for the role in Dr.Javad Tavakoli reaseach group.
 
 ## Current Model
 
