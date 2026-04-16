@@ -110,27 +110,64 @@ So this formula "clips" the next surge setting into the feasible range:
 
 ### Transition Model `P`
 
-The SIR model feeds the MDP by generating a time varying arrival rate `lambda(t)`.
+The transition model connects the epidemic layer to the hospital layer in a simple way:
 
-Interpretation:
+- SIR gives infections
+- `60%` of infected people generate hospital demand
+- hospitalized patients leave at an average rate of `4` days
+- the MDP decides whether to open or close surge beds
 
-- when infections rise, expected hospital arrivals rise
-- when infections fall, expected hospital arrivals fall
+Let:
 
-We then model arrivals over a decision interval using a Poisson distribution:
+- `I(t)` be the infected fraction from the SIR model
+- `N` be the total population size
+- `n_t` be the current number of hospitalized patients
+
+We model new arrivals during time step `t` as a Poisson random variable:
 
 ```math
-P(X = m) = \frac{\lambda(t)^m e^{-\lambda(t)}}{m!}
+A_t \sim \text{Poisson}(\lambda_t)
 ```
 
-This means the epidemic model determines how likely it is that the hospital moves from one patient count state to another.
+with expected arrival rate
 
-In words:
+```math
+\lambda_t = 0.60 \, N \, I(t)
+```
 
-- SIR produces the disease trend
-- the disease trend determines `lambda(t)`
-- `lambda(t)` drives stochastic patient arrivals
-- arrivals and capacity decisions determine the next MDP state
+This means hospital demand rises and falls with the infected population.
+
+We model departures from the hospital using a simple 4-day average length of stay. With a 1-day time step, the discharge rate is:
+
+```math
+\mu = \frac{1}{4}
+```
+
+so the expected number of patients leaving is:
+
+```math
+D_t = \mu n_t = \frac{1}{4} n_t
+```
+
+The patient count then updates as:
+
+```math
+n_{t+1} = \min(N_{max}, \max(0, n_t + A_t - D_t))
+```
+
+and the surge level updates as:
+
+```math
+k_{t+1} = \min(\max(k_t + a_t, 0), K_{max})
+```
+
+So each step works like this:
+
+1. The SIR model gives the current infected level `I(t)`
+2. That infected level determines expected hospital arrivals
+3. Existing hospitalized patients leave at a 4-day average rate
+4. The MDP updates the surge-bed level based on the chosen action
+5. The next state becomes `(n_{t+1}, k_{t+1})`
 
 ### Reward / Cost Function `R`
 
@@ -174,6 +211,12 @@ The final output of the MDP will be a policy that maps hospital state to action,
 
 The next step is to define the transition logic in more detail:
 
-- how `lambda(t)` is derived from the SIR output
-- how patient arrivals and discharges update `n`
-- how to compute transition probabilities between `(n, k)` states
+- how to compute explicit transition probabilities between `(n, k)` states
+- how to choose practical values for `Nmax`, `Kmax`, and capacity by surge level
+- how to solve the MDP for an optimal surge-bed policy
+
+
+#### Sources
+
+- SIR model reference https://en.wikipedia.org/wiki/Compartmental_models_(epidemiology). 
+- Used this to setup the ODE and solve (http://epirecip.es/epicookbook/chapters/sir/octave).
