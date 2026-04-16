@@ -52,6 +52,17 @@ This regenerates:
 - `sir_octave.out`
 - `sir_plot.png`
 
+To build and solve the surge-bed MDP:
+
+```bash
+octave run_mdp.m
+```
+
+This regenerates:
+
+- `mdp_results.mat`
+- `mdp_policy.png`
+
 ## Goal
 
 The broader goal is not only to simulate disease spread, but to support the hospital decision:
@@ -207,16 +218,64 @@ The final output of the MDP will be a policy that maps hospital state to action,
 - if patient count is moderate and surge is already high, maintain
 - if patient count is low and surge is high, contract
 
-## Next Step
+## Prototype Parameters
 
-The next step is to define the transition logic in more detail:
+To build and visualize the first MDP, we need a small set of concrete parameter values. For now, these should be treated as arbitrary prototype values chosen to make the model easy to run and interpret. They are not calibrated to a real hospital.
 
-- how to compute explicit transition probabilities between `(n, k)` states
-- how to choose practical values for `Nmax`, `Kmax`, and capacity by surge level
-- how to solve the MDP for an optimal surge-bed policy
+Values:
+
+- `N = 100`: total population represented by the SIR model
+- `Nmax = 80`: maximum patient count tracked in the MDP state space
+- `Kmax = 2`: maximum surge level
+- `Cbase = 20`: baseline bed capacity with no surge activated
+- `C(k) = Cbase + 10k`: each surge level adds `10` beds
+
+This gives:
+
+- `C(0) = 20`
+- `C(1) = 30`
+- `C(2) = 40`
+
+For the one-step cost function
+
+```math
+g(n, k, a) = c_1 k' + c_2 \max(0, n - C(k')) + c_3 |a|
+```
+
+suggested prototype weights are:
+
+- `c1 = 2`: operating cost for each active surge level
+- `c2 = 25`: congestion penalty for patients above available capacity
+- `c3 = 5`: switching cost for changing surge levels
+
+These values are chosen to reflect the idea that:
+
+- overload is much worse than running extra surge beds
+- opening or closing surge beds has a real cost
+- the model should avoid both unsafe crowding and unnecessary switching
+
+This parameter set is mainly intended to support a first working MDP and a clear policy visualization.
+
+
+## Reading the Plots
+
+`sir_plot.png` shows the seasonal SIR simulation over time:
+
+- `S` decreases as more people become infected
+- `I` rises and falls in seasonal waves
+- `R` increases as infected people recover and leave the infected group
+
+`mdp_policy.png` shows the surge-bed policy chosen by the MDP:
+
+- each panel corresponds to a current surge level `k = 0, 1, 2`
+- the x-axis is day and the y-axis is the current patient count `n`
+- the color shows the best action: contract, maintain, or expand
+
+So the heatmap can be read as: given the current day in the epidemic, the current patient load, and the current surge setting, what should the hospital do next?
 
 
 #### Sources
 
 - SIR model reference https://en.wikipedia.org/wiki/Compartmental_models_(epidemiology). 
 - Used this to setup the ODE and solve (http://epirecip.es/epicookbook/chapters/sir/octave).
+- For learing about the MDP (https://en.wikipedia.org/wiki/Markov_decision_process).
